@@ -1,0 +1,306 @@
+#include "address_map_arm.h"
+#include "defines.h"
+#include <stdio.h>
+
+#include "hwlib/socal/hps.h"
+#include "hwlib/socal/socal.h"
+#include "hwlib/socal/alt_rstmgr.h"
+#include "hwlib/socal/alt_uart.h"
+#include "hwlib/socal/alt_gpio.h"
+#include "hwlib/alt_16550_uart.h"
+
+#include "usart.h"
+
+#include "bc5602b_host.h"
+//#include "ble_soc.h"
+
+
+void set_A9_IRQ_stack (void);
+void config_GIC (void);
+void config_HPS_timer (void);
+void config_HPS_GPIO1 (void);
+void config_HPS_UART0 (void); // debug
+void enable_A9_interrupts (void);
+void ur0isr_receive_cobs_block(uint8_t ch);
+
+/* These global variables are written by interrupt service routines; we have to declare 
+ * these as volatile to avoid the compiler caching their values in registers */
+volatile int tick = 0;                    // set to 1 every time the HPS timer expires
+
+/* ********************************************************************************
+ * This program demonstrates use of interrupts with C code. It first starts
+ * two timers: an HPS timer, and the FPGA interval timer. The program responds 
+ * to interrupts from these timers in addition to the pushbutton KEYs in the FPGA.
+ *
+ * The interrupt service routine for the HPS timer causes the main program to flash
+ * the green light connected to the HPS GPIO1 port.
+ * 
+ ********************************************************************************/
+int main(void)
+{
+//    volatile int * HPS_GPIO1_ptr = (int *) HPS_GPIO1_BASE;    // GPIO1 base address
+//    volatile int HPS_timer_LEDG = 0x01000000;        // value to turn on the HPS green light LEDG
+    
+    set_A9_IRQ_stack ();            // initialize the stack pointer for IRQ mode
+    config_GIC ();                  // configure the general interrupt controller
+    config_HPS_timer ();            // configure the HPS timer
+    config_HPS_GPIO1 ();            // configure the HPS GPIO1 interface
+    config_HPS_UART0();             // configure the HPS uart0
+
+    enable_A9_interrupts ();        // enable interrupts
+//  printf("kidd.....\n");          //kidd, jtag uart
+    
+    bc5602B_initial();
+
+    while (1) 
+    {
+//static volatile uint32_t zzzz;
+//zzzz++; uart_puts("zzzz=");  uart_putu32(zzzz);  uart_putchar_n('\n');
+
+        /* test uart RX, by loopback to TXD
+        while ( !IS_BUFFER_EMPTY(UR0RxReadIndex, UR0RxWriteIndex) &&
+                !IS_BUFFER_FULL(UR0TxReadIndex, UR0TxWriteIndex)  )
+        {
+            unsigned char oooooo;
+            oooooo = UR0RxBuf[UR0RxReadIndex];
+            UR0RxReadIndex = (UR0RxReadIndex + 1) & (USART_BUFSIZE-1);
+            // loopback to TXD
+            uart_putu8(oooooo);
+        }*/
+
+      //if (tick > 31250 )
+        if (tick >  1500 )
+        {
+            tick = 0;
+        //    *HPS_GPIO1_ptr = HPS_timer_LEDG;                        // turn on/off the green light LEDG
+        //    alt_write_word  (HPS_GPIO1_ptr, HPS_timer_LEDG);        // turn on/off the green light LEDG
+              alt_xorbits_word(ALT_GPIO1_SWPORTA_DR_ADDR, 0x01000000);// turn on/off the green light LEDG
+            //alt_xorbits_word(ALT_GPIO0_SWPORTA_DR_ADDR, 0x00000001);// turn on/off the GPIO_1[0]
+
+        //    HPS_timer_LEDG ^= 0x01000000;            // toggle the bit that controls LEDG
+            
+        //    alt_read_word(ALT_UART0_RBR_THR_DLL_ADDR);
+//uart_puts("one sec ");  uart_putchar_n('\n');
+        }
+
+            bc5602B_process();
+    }
+
+    return 0;
+}
+
+
+#define ALT_UART_IER_DLH_ETBEI_DLH1_SET_MSK ALT_UART_IER_DLH_ETBEI_DLHL_SET_MSK
+/* setup uart0 */
+// This helper is needed because the regular alt_read_word(src) essentially
+// resolves to "*(volatile uint32_t *)src". As there is no assignment, this
+// could potentially be optimized away. With the helper, the actual register
+// read should occur and be returned (and subsequently discarded).
+static inline uint32_t alt_read_word_helper(const void * addr)
+{
+    return alt_read_word(addr);
+}
+    ALT_16550_HANDLE_t handle;
+void config_HPS_UART0 (void)
+{
+//  uint32_t fifo_size_rx;       /*!< Cache for the UART RX FIFO size. */
+//  uint32_t fifo_size_tx;       /*!< Cache for the UART TX FIFO size. */
+    uint32_t divisor;
+//    uint32_t baudrate = 256000 ; // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+ // uint32_t baudrate = 115200 ; // ALT_16550_BAUDRATE_115200
+	uint32_t baudrate = 1000000 ;
+    handle.device     = ALT_16550_DEVICE_SOCFPGA_UART0;
+    handle.location   = ALT_UART0_ADDR;
+    handle.clock_freq = 0;
+    handle.fcr        = 0;
+
+        // Bring UART0 out of reset.
+        alt_clrbits_word(ALT_RSTMGR_PERMODRST_ADDR, ALT_RSTMGR_PERMODRST_UART0_SET_MSK);
+
+        //alt_16550_reset_helper()
+        // Write SRR::UR (Shadow Reset Register :: UART Reset)
+        alt_write_word(ALT_UART_SRR_ADDR(handle.location), ALT_UART_SRR_UR_SET_MSK);  // uart0.srr[0] = 1 to reset uart0
+
+        // Read the MSR to work around case:119085.
+        alt_read_word_helper(ALT_UART_MSR_ADDR(handle.location));
+
+    // LCR (Line Control Register)
+    uint32_t lcr = 0;
+        // Configure the number of databits
+        lcr |= ALT_UART_LCR_DLS_SET(ALT_16550_DATABITS_8);     // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+        // Configure the number of stopbits
+        lcr |= ALT_UART_LCR_STOP_SET(ALT_16550_STOPBITS_1);    // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+        // Configure the parity
+        lcr |= ALT_UART_LCR_PEN_SET(ALT_16550_PARITY_DISABLE); // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+      //lcr |= ALT_UART_LCR_EPS_SET(0);
+        // Update LCR (Line Control Register)
+        alt_replbits_word(ALT_UART_LCR_ADDR(handle.location), 
+                          ALT_UART_LCR_DLS_SET_MSK
+                        | ALT_UART_LCR_STOP_SET_MSK
+                        | ALT_UART_LCR_PEN_SET_MSK
+                        | ALT_UART_LCR_EPS_SET_MSK,
+                          lcr);
+//
+        alt_clk_freq_get(ALT_CLK_L4_SP, &handle.clock_freq);
+    // Formula for calculating the divisor:
+    //    baudrate = clock / (16 * divisor)
+    // => baudrate * 16 * divisor = clock
+    // => divisor = clock / (baudrate * 16)
+    // => divisor = (clock / 16) / baudrate
+
+    // Add half of the denominator to address rounding errors.
+    divisor = ((handle.clock_freq + (8 * baudrate)) / (16 * baudrate));
+
+    handle.fcr = 0;
+        // Set FCR::FIFOE (FIFO Control Register :: FIFO Enable) bit.
+        handle.fcr |= ALT_UART_FCR_FIFOE_SET_MSK;
+        alt_write_word(ALT_UART_FCR_ADDR(handle.location), handle.fcr);
+        // Update FCR::RT (FIFO Control Register :: Receiver Trigger)
+        handle.fcr &= ~ALT_UART_FCR_RT_SET_MSK;
+        handle.fcr |= ALT_UART_FCR_RT_SET(ALT_UART_FCR_RT_E_ONECHAR);       //<<< 1 or more character(s) in the receiver FIFO
+//      handle.fcr |= ALT_UART_FCR_RT_SET(ALT_UART_FCR_RT_E_QUARTERFULL);   //<<< 25% or higher
+//      handle.fcr |= ALT_UART_FCR_RT_SET(ALT_UART_FCR_RT_E_HALFFULL);      //<<< 50% or higher
+//      handle.fcr |= ALT_UART_FCR_RT_SET(ALT_UART_FCR_RT_E_FULLLESS2);     //<<< 2 characters less than the receiver FIFO
+        alt_write_word(ALT_UART_FCR_ADDR(handle.location), handle.fcr);
+        // Update FCR::TET (FIFO Control Register :: Transmit Empty Trigger)
+        handle.fcr &= ~ALT_UART_FCR_TET_SET_MSK;
+        handle.fcr |= ALT_UART_FCR_TET_SET(ALT_UART_FCR_TET_E_FIFOEMPTY);   //<<< Transmitter FIFO being completely empty
+//      handle.fcr |= ALT_UART_FCR_TET_SET(ALT_UART_FCR_TET_E_TWOCHARS);    //<<< 2 or less character(s) in the transmitter FIFO
+//      handle.fcr |= ALT_UART_FCR_TET_SET(ALT_UART_FCR_TET_E_QUARTERFULL); //<<< 25% or less capacity usage in the transmitter FIFO
+//      handle.fcr |= ALT_UART_FCR_TET_SET(ALT_UART_FCR_TET_E_HALFFULL);    //<<< 50% or less capacity usage in the transmitter FIFO
+        alt_write_word(ALT_UART_FCR_ADDR(handle.location), handle.fcr);
+        
+        // Read the CPR::FIFO_Mod (Component Parameter Register :: FIFO Mode).
+        // The FIFO size is 16x this value.
+//      fifo_size_rx = ALT_UART_CPR_FIFO_MOD_GET(alt_read_word(ALT_UART_CPR_ADDR(handle.location))) << 4;
+        // Read the CPR::FIFO_Mod (Component Parameter Register :: FIFO Mode).
+        // The FIFO size is 16x this value.
+//      fifo_size_tx = ALT_UART_CPR_FIFO_MOD_GET(alt_read_word(ALT_UART_CPR_ADDR(handle.location))) << 4;
+        // Set the IER::ERBFI (Interrupt Enable Register :: Enable Receive Buffer Full Interrupt) bit.
+        alt_setbits_word(ALT_UART_IER_DLH_ADDR(handle.location), ALT_UART_IER_DLH_ERBFI_DLH0_SET_MSK);
+        // Set the IER::ETBEI (Interrupt Enable Register :: Enable Transmit Buffer Empty Interrupt) bit.
+        alt_setbits_word(ALT_UART_IER_DLH_ADDR(handle.location), ALT_UART_IER_DLH_ETBEI_DLH1_SET_MSK);
+        alt_setbits_word(ALT_UART_IER_DLH_ADDR(handle.location), ALT_UART_IER_DLH_PTIME_DLH7_SET_MSK);
+
+    // Set the divisor portion of the handle data.
+    divisor &= (0xffff);
+        // Set LCR::DLAB (Line Control Register :: Divisor Latch Access Bit)
+        alt_setbits_word(ALT_UART_LCR_ADDR(handle.location), ALT_UART_LCR_DLAB_SET_MSK);
+        // Write DLL (Divisor Latch Low).
+        alt_write_word(ALT_UART_RBR_THR_DLL_ADDR(handle.location), ALT_UART_RBR_THR_DLL_VALUE_SET(divisor));
+        // Write DLH (Divisor Latch High).
+        alt_write_word(ALT_UART_IER_DLH_ADDR(handle.location), (divisor >> 8)&0xff );
+        // Clear LCR::DLAB (Line Control Register :: Divisor Latch Access Bit)
+        alt_clrbits_word(ALT_UART_LCR_ADDR(handle.location), ALT_UART_LCR_DLAB_SET_MSK);
+}
+void HPS_UART0_ISR (void)
+{
+    ALT_16550_INT_STATUS_t int_status;
+        // Read IIR::IID (Interrupt Identity Register :: Interrupt ID)
+    int_status = (ALT_16550_INT_STATUS_t) ALT_UART_IIR_ID_GET(alt_read_word(ALT_UART_IIR_ADDR(handle.location)));
+        switch (int_status)
+        {
+        case ALT_16550_INT_STATUS_RX_DATA:
+        case ALT_16550_INT_STATUS_RX_TIMEOUT:
+            /*
+                if (IS_BUFFER_FULL(UR0RxReadIndex, UR0RxWriteIndex))
+                {
+                    // USART Rx buffer is full
+                    break;
+                }
+                UR0RxBuf[UR0RxWriteIndex] = ALT_UART_RBR_THR_DLL_VALUE_GET(alt_read_word(ALT_UART_RBR_THR_DLL_ADDR(handle.location)));
+                UR0RxWriteIndex = (UR0RxWriteIndex + 1) & (USART_BUFSIZE-1);
+            */
+              /*
+                if (!IS_BUFFER_FULL(UR0RxReadIndex, UR0RxWriteIndex) &&
+                    ALT_UART_LSR_DR_GET(alt_read_word(ALT_UART_LSR_ADDR(handle.location))) )
+                {
+                    UR0RxBuf[UR0RxWriteIndex] = ALT_UART_RBR_THR_DLL_VALUE_GET(alt_read_word(ALT_UART_RBR_THR_DLL_ADDR(handle.location)));
+                    UR0RxWriteIndex = (UR0RxWriteIndex + 1) & (USART_BUFSIZE-1);
+                }
+              */
+                if( ALT_UART_LSR_DR_GET(alt_read_word(ALT_UART_LSR_ADDR(handle.location))) )
+                {
+                    uint8_t ch;
+                    ch = ALT_UART_RBR_THR_DLL_VALUE_GET(alt_read_word(ALT_UART_RBR_THR_DLL_ADDR(handle.location)));
+                    ur0isr_receive_cobs_block(ch);
+                }
+              //
+            break;
+        case ALT_16550_INT_STATUS_TX_IDLE:
+            if (IS_BUFFER_EMPTY(UR0TxReadIndex, UR0TxWriteIndex))
+            {
+              //alt_clrbits_word(ALT_UART_IER_DLH_ADDR(handle.location), 0x80|0x02                                                               ); // DISABLE TX
+                alt_clrbits_word(ALT_UART_IER_DLH_ADDR(handle.location), ALT_UART_IER_DLH_PTIME_DLH7_SET_MSK|ALT_UART_IER_DLH_ETBEI_DLHL_SET_MSK ); // DISABLE TX
+            }
+            else
+            {
+                /*
+                uint8_t i;
+                for (i = 0; i < 8; i++)
+                {
+                    alt_write_word(ALT_UART_RBR_THR_DLL_ADDR(handle.location), UR0TxBuf[UR0TxReadIndex]);
+                    UR0TxReadIndex = (UR0TxReadIndex + 1) & (USART_BUFSIZE-1);
+                    if (IS_BUFFER_EMPTY(UR0TxReadIndex, UR0TxWriteIndex))
+                    {
+                        break;
+                    }
+                }
+                */
+                if (!IS_BUFFER_EMPTY(UR0TxReadIndex, UR0TxWriteIndex) &&
+                    ALT_UART_USR_TFNF_GET(alt_read_word(ALT_UART_USR_ADDR(handle.location))) )
+                {
+                    alt_write_word(ALT_UART_RBR_THR_DLL_ADDR(handle.location), UR0TxBuf[UR0TxReadIndex]);
+                    UR0TxReadIndex = (UR0TxReadIndex + 1) & (USART_BUFSIZE-1);
+                }
+            }
+            break;
+        case ALT_16550_INT_STATUS_LINE:
+            break;
+        default:
+            break;
+        }
+}
+
+/* setup HPS timer */
+void config_HPS_timer(void)
+{
+    volatile uint32_t * HPS_timer_ptr = (volatile uint32_t *) HPS_TIMER0_BASE;    // timer base address
+
+    *(HPS_timer_ptr + 2) = 0;           // write to control register to stop timer
+    /* set the timer period */
+  //int counter = 100000000;            // period = 1/(100 MHz) x (100 x 10^6) = 1     sec
+    int counter =     62500;            // period = 1/(100 MHz) x (     62500) = 625    us
+  //int counter =      5000;            // period = 1/(100 MHz) x (      5000) =  50    us
+  //int counter =      3125;            // period = 1/(100 MHz) x (      3125) =  31.25 us <==  32KHz  tmr31us_current_ticks
+    *(HPS_timer_ptr) = counter;         // write to timer load register
+
+    /* write to control register to start timer, with interrupts */
+    *(HPS_timer_ptr + 2) = 0b011;       // int mask = 0, mode = 1, enable = 1
+}
+
+/* setup HPS GPIO1. The GPIO1 port has one green light (LEDG) and one pushbutton KEY connected
+ * for the DE1-SoC Computer. The KEY is connected to GPIO1[25], and is not used here. The green
+ * LED is connected to GPIO1[24]. */
+
+void config_HPS_GPIO1(void)
+{
+//  volatile uint32_t * HPS_GPIO1_ptr = (volatile uint32_t *) HPS_GPIO1_BASE;    // GPIO1 base address
+
+//    *(HPS_GPIO1_ptr + 0x1) = 0x01000000;                              // write to the data direction register to set bit 24 (LEDG) to be an output
+    alt_setbits_word(ALT_GPIO1_SWPORTA_DDR_ADDR, ((uint32_t)1)<<24);    // write to the data direction register to set bit 24 (LEDG) to be an output
+  //alt_setbits_word(ALT_GPIO0_SWPORTA_DDR_ADDR, ((uint32_t)1)<<0 );    // write to the data direction register to set bit 0         to be an output
+  //  ( *((volatile uint32_t *) 0xFF709004) ) =    0x01000001 ;
+//  alt_setbits_word(ALT_GPIO1_INTEN_ADDR,         0x00000001    );     // 1: Enable Interrupt
+//  alt_setbits_word(ALT_GPIO1_INTTYPE_LEVEL_ADDR, 0x00000001    );     // 1: Edge-sensitive
+//  alt_setbits_word(ALT_GPIO1_INT_POL_ADDR,       0x00000001    );     // 1: Active high
+    // Other possible actions include setting up GPIO1 to use the KEY, including setting
+    // the debounce option and causing the KEY to generate an interrupt. We do not use the
+    // KEY in this example.
+}
+/*
+void HPS_GPIO1_ISR (void)
+{
+    alt_setbits_word(ALT_GPIO1_PORTA_EOI_ADDR,     0x00000001    );     // 1: Clear interrupt   disable interrupt
+    alt_setbits_word(ALT_GPIO1_INTEN_ADDR,         0x00000001    );     // 1: Enable Interrupt
+}*/

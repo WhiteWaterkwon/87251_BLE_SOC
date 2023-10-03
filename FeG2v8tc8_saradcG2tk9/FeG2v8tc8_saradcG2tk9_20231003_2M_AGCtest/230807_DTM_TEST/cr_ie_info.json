@@ -1,0 +1,22 @@
+{
+	"system" : {
+		"platform" : "windows64",
+		"os_name" : "Windows 10",
+		"os_version" : "10.0"
+	},
+	"error" : {
+		"executable" : "quartus_hps",
+		"comment" : "not_applicable",
+		"error_message" : "m_hardware_started_up",
+		"source_file" : "/quartus/pgm/hps/hps_common.cpp",
+		"line" : "576",
+		"stack_trace" : "\t0x7ff64daa69ad: quartus_hps + 0x269ad (?hps_lock_aji@@YA_NXZ + 0x2d)\n\t0x7ff64daa9c04: quartus_hps + 0x29c04 (?read_debug_status@@YA_NV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z + 0x34)\n\t0x7ff64daca779: quartus_hps + 0x4a779 (?execute@HPS_FRAMEWORK@@UEAA_NXZ + 0x1019)\n\t0x7ffb813d12bc: comp_qexe + 0x112bc (qexe_do_normal + 0x1ec)\n\t0x7ffb813d6142: comp_qexe + 0x16142 (qexe_run + 0x432)\n\t0x7ffb813d6e51: comp_qexe + 0x16e51 (?qexe_standard_main@@YAHPEAVQEXE_FRAMEWORK@@PEAPEBUQEXE_OPTION_DEFINITION@@HPEAPEBD@Z + 0xc1)\n\t0x7ff64dacaf7c: quartus_hps + 0x4af7c (?hps_main@@YAHHPEAPEBD@Z + 0x7c)\n\t0x7ffb81142e98: CCL_MSG + 0x12e98 (?msg_main_thread@@YAPEAXPEAX@Z + 0x18)\n\t0x7ffb8114467e: CCL_MSG + 0x1467e (?msg_thread_wrapper@@YAPEAXP6APEAXPEAX@Z0@Z + 0x6e)\n\t0x7ffb81266660: ccl_mem + 0x16660 (?mem_thread_wrapper@@YAPEAXP6APEAXPEAX@Z0@Z + 0x70)\n\t0x7ffb81142761: CCL_MSG + 0x12761 (?msg_exe_main@@YAHHPEAPEBDP6AHH0@Z@Z + 0xa1)\n\t0x7ff64dacbc1e: quartus_hps + 0x4bc1e (__tmainCRTStartup + 0x10e)\n\t0x7ffb9e077613: KERNEL32 + 0x17613 (BaseThreadInitThunk + 0x13)\n\t0x7ffb9e3226a0: ntdll + 0x526a0 (RtlUserThreadStart + 0x20)\n",
+		"subsystem" : "HPS"
+	},
+	"quartus" : {
+		"quartus_bits" : "64",
+		"version" : "18.1.0",
+		"build" : "625",
+		"edition" : "Lite Edition"
+	}
+}

@@ -1,0 +1,6 @@
+正在比較檔案 .\aesavs_keysize128_B1_C1_D1_E1_EncryptOut.txt 和 .\_LOG_AESAVS_KEYSIZE128_ENCRYPTOUT.TXT
+FC: 找不到相異處
+
+正在比較檔案 .\aesavs_keysize128_B1_C1_D1_E1_DecryptOut.txt 和 .\_LOG_AESAVS_KEYSIZE128_DECRYPTOUT.TXT
+FC: 找不到相異處
+

@@ -1,0 +1,317 @@
+/*********************************************************************************************************//**
+ * @file    pdma.h
+ * @version $Rev:: 100          $
+ * @date    $Date:: 2022-02-22 #$
+ * @brief   The header file of the PDMA functions.
+ *************************************************************************************************************
+ * @attention
+ *
+ * Firmware Disclaimer Information
+ *
+ * 1. The customer hereby acknowledges and agrees that the program technical documentation, including the
+ *    code, which is supplied by Holtek Semiconductor Inc., (hereinafter referred to as "HOLTEK") is the
+ *    proprietary and confidential intellectual property of HOLTEK, and is protected by copyright law and
+ *    other intellectual property laws.
+ *
+ * 2. The customer hereby acknowledges and agrees that the program technical documentation, including the
+ *    code, is confidential information belonging to HOLTEK, and must not be disclosed to any third parties
+ *    other than HOLTEK and the customer.
+ *
+ * 3. The program technical documentation, including the code, is provided "as is" and for customer reference
+ *    only. After delivery by HOLTEK, the customer shall use the program technical documentation, including
+ *    the code, at their own risk. HOLTEK disclaims any expressed, implied or statutory warranties, including
+ *    the warranties of merchantability, satisfactory quality and fitness for a particular purpose.
+ *
+ * <h2><center>Copyright (C) 2022 Holtek Semiconductor Inc. All rights reserved</center></h2>
+ ************************************************************************************************************/
+
+/* Define to prevent recursive inclusion -------------------------------------------------------------------*/
+#ifndef __PDMA_H
+#define __PDMA_H
+
+/* Includes ------------------------------------------------------------------------------------------------*/
+#include "ble_soc.h"                        // PDMA_WT08
+
+/* Exported types ------------------------------------------------------------------------------------------*/
+
+/* Exported constants --------------------------------------------------------------------------------------*/
+
+/* Exported macro ------------------------------------------------------------------------------------------*/
+//===============================================================================
+// PDMA One Channel (CH0) Data Transfer Command
+//===============================================================================
+static inline void pdma_ch0_dt_ble(
+                    //uint32_t PDMA_IRQ_CF,
+                      uint32_t pdma_src_addr
+                    //uint32_t pdma_des_addr,
+                    //uint32_t pdma_trans_count
+                    //uint32_t PDMA_CTRL
+                   )
+{ 
+  PDMA_WT08 (0x3000, 0x01); //PDMA_INIT (0x01);
+  PDMA_WT32 (0x0000, 0x00000000);       // 0x000  PDMA Channel 0 Control Register
+  PDMA_WT32 (0x0130, 0x00000000);       // PDMA Interrupt Enable Register - PDMAIER  bit[10] GEIE2  Channel 2 Global Transfer Event Interrupt Enable
+                                        //                                           bit[13] TCIE2  Channel 2 Transfer Complete Interrupt Enable
+  PDMA_WT32 (0x0004, pdma_src_addr);    // 0x004  PDMA Channel 0 Source Address Register
+//PDMA_WT32 (0x0008, pdma_des_addr);    // 0x008  PDMA Channel 0 Destination Address Register
+  PDMA_WT32 (0x0008, 0x000100B8   );    // 0x008  PDMA Channel 0 Destination Address Register    0xB8:DMA_AESW
+//PDMA_WT32 (0x0010, 0x00000004+(pdma_trans_count<<16));
+  PDMA_WT32 (0x0010, 0x00000004 | (17UL << 16));    // 17:1+16 times, 4:4 words for an AES block
+                                                    //    + ++------16*(4 words)
+                                                    //    +---------SK
+                                        // 0x010  PDMA Channel 0 Transfer Size Register
+                                        //          bit[7:0]   Channel n Block Length
+                                        //          bit[15:8]  -
+                                        //          bit[31:16] Channel n Block Transaction Count
+  PDMA_WT32 (0x0000, 0x00000729); //TX  // 0x000  PDMA Channel 0 Control Register
+                                        //        1 bit[0]     Channel n Enable
+                                        //        0 bit[1]     Channel n Software Trigger control, 0:No operation, 1:Software triggered transfer request
+                                        //       10 bit[3:2]   Channel n Data Bit Width selection, 00:8-bit, 01:16-bit, 10:32-bit, 11:-
+                                        //        0 bit[4]     Channel n Destination Address Increment control, 0:Increment, 1:Decrement
+                                        //        1 bit[5]     Channel n Destination Address Mode selection, 0:Linear address mode, 1:Circular address mode
+                                        //        0 bit[6]     Channel n Source      Address Increment control, 0:Increment, 1:Decrement
+                                        //        0 bit[7]     Channel n Source      Address Mode selection, 0:Linear address mode, 1:Circular address mode
+                                        //       11 bit[9:8]   Channel n Priority, 00:Low, 01:Medium, 10:High, 11:Very high
+                                        //        1 bit[10]    Channel n Fixed Address Enable
+                                        //        0 bit[11]    Channel n Auto Reload Enable
+  PDMA_WT08 (0x3000, 0x00); //PDMA_INIT (0x00);
+}
+
+//===============================================================================
+// PDMA One Channel (CH1) Data Transfer Command
+//===============================================================================
+static inline void pdma_ch1_dt_ble(
+                    //uint32_t PDMA_IRQ_CF,
+                    //uint32_t pdma_src_addr,
+                      uint32_t pdma_des_addr
+                    //uint32_t pdma_trans_count
+                    //uint32_t PDMA_CTRL
+                   )
+{ 
+  PDMA_WT08 (0x3000, 0x01); //PDMA_INIT (0x01);
+  PDMA_WT32 (0x0018, 0x00000000);       // 0x018  PDMA Channel 1 Control Register
+  PDMA_WT32 (0x0130, 0x00000000);       // PDMA Interrupt Enable Register - PDMAIER  bit[10] GEIE2  Channel 2 Global Transfer Event Interrupt Enable
+                                        //                                           bit[13] TCIE2  Channel 2 Transfer Complete Interrupt Enable
+//PDMA_WT32 (0x001C, pdma_src_addr);    // 0x01C  PDMA Channel 1 Source Address Register
+  PDMA_WT32 (0x001C, 0x000100BC   );    // 0x01C  PDMA Channel 1 Source Address Register          0xBC:DMA_AESR
+  PDMA_WT32 (0x0020, pdma_des_addr);    // 0x020  PDMA Channel 1 Destination Address Register
+//PDMA_WT32 (0x0028, 0x00000001+(pdma_trans_count<<16));
+  PDMA_WT32 (0x0028, 0x00000001 | (64UL << 16));    // 64:63+1 times, 1:1 word
+                                                    //    ++ +------MIC 1 word
+                                                    //    ++--------63*4 = 252 > 251
+                                        // 0x028  PDMA Channel 1 Transfer Size Register
+                                        //          bit[7:0]   Channel n Block Length
+                                        //          bit[15:8]  -
+                                        //          bit[31:16] Channel n Block Transaction Count
+  PDMA_WT32 (0x0018, 0x00000789); //TX  // 0x018  PDMA Channel 1 Control Register
+                                        //        1 bit[0]     Channel n Enable
+                                        //        0 bit[1]     Channel n Software Trigger control, 0:No operation, 1:Software triggered transfer request
+                                        //       10 bit[3:2]   Channel n Data Bit Width selection, 00:8-bit, 01:16-bit, 10:32-bit, 11:-
+                                        //        0 bit[4]     Channel n Destination Address Increment control, 0:Increment, 1:Decrement
+                                        //        0 bit[5]     Channel n Destination Address Mode selection, 0:Linear address mode, 1:Circular address mode
+                                        //        0 bit[6]     Channel n Source      Address Increment control, 0:Increment, 1:Decrement
+                                        //        1 bit[7]     Channel n Source      Address Mode selection, 0:Linear address mode, 1:Circular address mode
+                                        //       11 bit[9:8]   Channel n Priority, 00:Low, 01:Medium, 10:High, 11:Very high
+                                        //        1 bit[10]    Channel n Fixed Address Enable
+                                        //        0 bit[11]    Channel n Auto Reload Enable
+  PDMA_WT08 (0x3000, 0x00); //PDMA_INIT (0x00);
+}
+
+//===============================================================================
+// PDMA One Channel (CH2) Data Transfer Command
+//===============================================================================
+static inline void pdma_ch2_disable(void)
+{ 
+  PDMA_WT08 (0x3000, 0x01); //PDMA_INIT (0x01);
+  PDMA_WT32 (0x0130, 0x00000000);       // PDMA Interrupt Enable Register - PDMAIER  bit[10] GEIE2  Channel 2 Global Transfer Event Interrupt Enable
+  PDMA_WT32 (0x0030, 0x00000000); //TX  // 0x030  PDMA Channel 2 Control Register
+                                        //        0 bit[0]     Channel n Enable
+                                        //        0 bit[1]     Channel n Software Trigger control, 0:No operation, 1:Software triggered transfer request
+                                        //       00 bit[3:2]   Channel n Data Bit Width selection, 00:8-bit, 01:16-bit, 10:32-bit, 11:-
+                                        //        0 bit[4]     Channel n Destination Address Increment control, 0:Increment, 1:Decrement
+                                        //        1 bit[5]     Channel n Destination Address Mode selection, 0:Linear address mode, 1:Circular address mode
+                                        //        0 bit[6]     Channel n Source      Address Increment control, 0:Increment, 1:Decrement
+                                        //        0 bit[7]     Channel n Source      Address Mode selection, 0:Linear address mode, 1:Circular address mode
+                                        //       11 bit[9:8]   Channel n Priority, 00:Low, 01:Medium, 10:High, 11:Very high
+                                        //        1 bit[10]    Channel n Fixed Address Enable
+                                        //        0 bit[11]    Channel n Auto Reload Enable
+  PDMA_WT08 (0x3000, 0x00); //PDMA_INIT (0x00);
+}
+static inline void pdma_ch2_dt_bletx(
+                    //uint32_t PDMA_IRQ_CF,
+                      uint32_t pdma_src_addr,
+                      uint32_t pdma_des_addr,
+                      uint32_t pdma_trans_count
+                    //uint32_t PDMA_CTRL
+                   )
+{ 
+  PDMA_WT08 (0x3000, 0x01); //PDMA_INIT (0x01);
+  PDMA_WT32 (0x0030, 0x00000000);       // 0x030  PDMA Channel 2 Control Register
+  PDMA_WT32 (0x0130, 0x00002400);       // PDMA Interrupt Enable Register - PDMAIER  bit[10] GEIE2  Channel 2 Global Transfer Event Interrupt Enable
+                                        //                                           bit[13] TCIE2  Channel 2 Transfer Complete Interrupt Enable
+  PDMA_WT32 (0x0034, pdma_src_addr);    // 0x034  PDMA Channel 2 Source Address Register
+  PDMA_WT32 (0x0038, pdma_des_addr);    // 0x038  PDMA Channel 2 Destination Address Register
+  PDMA_WT32 (0x0040, 0x00000001+(pdma_trans_count<<16));
+                                        // 0x040  PDMA Channel 2 Transfer Size Register
+                                        //          bit[7:0]   Channel n Block Length
+                                        //          bit[15:8]  -
+                                        //          bit[31:16] Channel n Block Transaction Count
+  PDMA_WT32 (0x0030, 0x00000721); //TX  // 0x030  PDMA Channel 2 Control Register
+                                        //        1 bit[0]     Channel n Enable
+                                        //        0 bit[1]     Channel n Software Trigger control, 0:No operation, 1:Software triggered transfer request
+                                        //       00 bit[3:2]   Channel n Data Bit Width selection, 00:8-bit, 01:16-bit, 10:32-bit, 11:-
+                                        //        0 bit[4]     Channel n Destination Address Increment control, 0:Increment, 1:Decrement
+                                        //        1 bit[5]     Channel n Destination Address Mode selection, 0:Linear address mode, 1:Circular address mode
+                                        //        0 bit[6]     Channel n Source      Address Increment control, 0:Increment, 1:Decrement
+                                        //        0 bit[7]     Channel n Source      Address Mode selection, 0:Linear address mode, 1:Circular address mode
+                                        //       11 bit[9:8]   Channel n Priority, 00:Low, 01:Medium, 10:High, 11:Very high
+                                        //        1 bit[10]    Channel n Fixed Address Enable
+                                        //        0 bit[11]    Channel n Auto Reload Enable
+  PDMA_WT08 (0x3000, 0x00); //PDMA_INIT (0x00);
+}
+static inline void pdma_ch2_dt_blerx(
+                    //uint32_t PDMA_IRQ_CF,
+                      uint32_t pdma_src_addr,
+                      uint32_t pdma_des_addr,
+                      uint32_t pdma_trans_count
+                    //uint32_t PDMA_CTRL
+                   )
+{ 
+  PDMA_WT08 (0x3000, 0x01); //PDMA_INIT (0x01);
+  PDMA_WT32 (0x0030, 0x00000000);       // 0x030  PDMA Channel 2 Control Register
+  PDMA_WT32 (0x0130, 0x00002400);       // PDMA Interrupt Enable Register - PDMAIER  bit[10] GEIE2  Channel 2 Global Transfer Event Interrupt Enable
+                                        //                                           bit[13] TCIE2  Channel 2 Transfer Complete Interrupt Enable
+  PDMA_WT32 (0x0034, pdma_src_addr);    // 0x034  PDMA Channel 2 Source Address Register
+  PDMA_WT32 (0x0038, pdma_des_addr);    // 0x038  PDMA Channel 2 Destination Address Register
+  PDMA_WT32 (0x0040, 0x00000001+(pdma_trans_count<<16));
+                                        // 0x040  PDMA Channel 2 Transfer Size Register
+                                        //          bit[7:0]   Channel n Block Length
+                                        //          bit[15:8]  -
+                                        //          bit[31:16] Channel n Block Transaction Count
+  PDMA_WT32 (0x0030, 0x00000781); //RX  // 0x030  PDMA Channel 2 Control Register
+                                        //        1 bit[0]     Channel n Enable
+                                        //        0 bit[1]     Channel n Software Trigger control, 0:No operation, 1:Software triggered transfer request
+                                        //       00 bit[3:2]   Channel n Data Bit Width selection, 00:8-bit, 01:16-bit, 10:32-bit, 11:-
+                                        //        0 bit[4]     Channel n Destination Address Increment control, 0:Increment, 1:Decrement
+                                        //        0 bit[5]     Channel n Destination Address Mode selection, 0:Linear address mode, 1:Circular address mode
+                                        //        0 bit[6]     Channel n Source      Address Increment control, 0:Increment, 1:Decrement
+                                        //        1 bit[7]     Channel n Source      Address Mode selection, 0:Linear address mode, 1:Circular address mode
+                                        //       11 bit[9:8]   Channel n Priority, 00:Low, 01:Medium, 10:High, 11:Very high
+                                        //        1 bit[10]    Channel n Fixed Address Enable
+                                        //        0 bit[11]    Channel n Auto Reload Enable
+  PDMA_WT08 (0x3000, 0x00); //PDMA_INIT (0x00);
+}
+
+static inline void pdma_ch2and3_dt_blerx_aod(
+                    //uint32_t PDMA_IRQ_CF,
+                      uint32_t pdma_src_addr,
+                      uint32_t pdma_des_addr,
+                      uint32_t pdma_trans_count,
+                    //uint32_t PDMA_CTRL
+                      uint32_t pdma_cte_src_addr,
+                      uint32_t pdma_cte_des_addr,
+                      uint32_t pdma_cte_trans_count
+                   )
+{ 
+  PDMA_WT08 (0x3000, 0x01); //PDMA_INIT (0x01);
+  //PDMA_WT32 (0x0030, 0x00000000);       // 0x030  PDMA Channel 2 Control Register
+  PDMA_WT32 (0x0130, 0x0004A400);       // PDMA Interrupt Enable Register - PDMAIER  bit[10] GEIE2  Channel 2 Global Transfer Event Interrupt Enable
+                                        //                                           bit[13] TCIE2  Channel 2 Transfer Complete Interrupt Enable
+  PDMA_WT32 (0x0034, pdma_src_addr);    // 0x034  PDMA Channel 2 Source Address Register
+  PDMA_WT32 (0x0038, pdma_des_addr);    // 0x038  PDMA Channel 2 Destination Address Register
+  PDMA_WT32 (0x0040, 0x00000001+(pdma_trans_count<<16)); // 0x040  PDMA Channel 2 Transfer Size Register
+                                        //          bit[7:0]   Channel n Block Length
+                                        //          bit[15:8]  -
+                                        //          bit[31:16] Channel n Block Transaction Count
+  PDMA_WT32 (0x0030, 0x00000781); //RX  // 0x030  PDMA Channel 2 Control Register
+                                        //        1 bit[0]     Channel n Enable
+                                        //        0 bit[1]     Channel n Software Trigger control, 0:No operation, 1:Software triggered transfer request
+                                        //       00 bit[3:2]   Channel n Data Bit Width selection, 00:8-bit, 01:16-bit, 10:32-bit, 11:-
+                                        //        0 bit[4]     Channel n Destination Address Increment control, 0:Increment, 1:Decrement
+                                        //        0 bit[5]     Channel n Destination Address Mode selection, 0:Linear address mode, 1:Circular address mode
+                                        //        0 bit[6]     Channel n Source      Address Increment control, 0:Increment, 1:Decrement
+                                        //        1 bit[7]     Channel n Source      Address Mode selection, 0:Linear address mode, 1:Circular address mode
+                                        //       11 bit[9:8]   Channel n Priority, 00:Low, 01:Medium, 10:High, 11:Very high
+                                        //        1 bit[10]    Channel n Fixed Address Enable
+                                        //        0 bit[11]    Channel n Auto Reload Enable
+  PDMA_WT32 (0x004C, pdma_cte_src_addr);	//     	PDMA   CH3 SRC Address 0x0028
+  PDMA_WT32 (0x0050, pdma_cte_des_addr);	//	PDMA   CH3 DES Address 0x0200
+  PDMA_WT32 (0x0058, 0x00000001+(pdma_cte_trans_count<<16));	//	PDMA   CH3 Data = (45*1) = 45words
+ //PDMA_WT32 (0x0058, 0x002D0001);
+  PDMA_WT32 (0x0048, 0x00000789); 	//      PDMA   CH3 Hardware enable
+  
+  
+  PDMA_WT08 (0x3000, 0x00); //PDMA_INIT (0x00);
+}
+
+static inline void PDMA_CH4_DT(
+                       uint32_t PDMA_IRQ_CF,
+                       uint32_t pdma_src_addr,
+                       uint32_t pdma_des_addr,
+                       uint32_t PDMA_TRANS_SIZE,
+                       uint32_t PDMA_CTRL
+                   )
+{ 
+  PDMA_WT08 (0x3000, 0x01); //PDMA_INIT (0x01);
+  PDMA_WT32 (0x0130, PDMA_IRQ_CF);
+  PDMA_WT32 (0x0064, pdma_src_addr);    // 0x064  PDMA Channel 4 Source Address Register
+  PDMA_WT32 (0x0068, pdma_des_addr);    // 0x068  PDMA Channel 4 Destination Address Register
+  PDMA_WT32 (0x0070, PDMA_TRANS_SIZE);
+                                        // 0x070  PDMA Channel 4 Transfer Size Register
+                                        //          bit[7:0]   Channel 4 Block Length
+                                        //          bit[15:8]  -
+                                        //          bit[31:16] Channel 4 Block Transaction Count
+  PDMA_WT32 (0x0060, PDMA_CTRL); 
+  PDMA_WT08 (0x3000, 0x00); //PDMA_INIT (0x00);
+}
+static inline void PDMA_CH5_DT(
+                       uint32_t PDMA_IRQ_CF,
+                       uint32_t pdma_src_addr,
+                       uint32_t pdma_des_addr,
+                       uint32_t PDMA_TRANS_SIZE,
+                       uint32_t PDMA_CTRL
+                   )
+{ 
+  PDMA_WT08 (0x3000, 0x01); //PDMA_INIT (0x01);
+  PDMA_WT32 (0x0130, PDMA_IRQ_CF);
+  PDMA_WT32 (0x007C, pdma_src_addr);    // 0x07C  PDMA Channel 5 Source Address Register
+  PDMA_WT32 (0x0080, pdma_des_addr);    // 0x080  PDMA Channel 5 Destination Address Register
+  PDMA_WT32 (0x0088, PDMA_TRANS_SIZE);
+                                        // 0x088  PDMA Channel 5 Transfer Size Register
+                                        //          bit[7:0]   Channel 5 Block Length
+                                        //          bit[15:8]  -
+                                        //          bit[31:16] Channel 5 Block Transaction Count
+  PDMA_WT32 (0x0078, PDMA_CTRL); 
+  PDMA_WT08 (0x3000, 0x00); //PDMA_INIT (0x00);
+}
+
+static inline void pdma_ch2_bleRx_setting__aesccmEN0(uint16_t ramStartAddr)
+{
+    RF_WT08(0xC0, 0x00);  //AESCCM  [0]AESCCM_EN = 0
+    pdma_ch2_dt_blerx(0x00010000+0x0024, 0x00030000+ramStartAddr, /*length*/255);   //(31-4)~(255-4)    -4:MIC
+}
+static inline void pdma_ch2and3_bleRx_aod_setting__aesccmEN0(uint16_t ramStartAddr,uint16_t cte_ramStartAddr)
+{
+    RF_WT08(0xC0, 0x00);  //AESCCM  [0]AESCCM_EN = 0
+    pdma_ch2and3_dt_blerx_aod(0x00010000+0x0024, 0x00030000+ramStartAddr, /*length*/37 , 0x00010000+0x0028,0x00030000+cte_ramStartAddr,/*1us _slots:82words 2us_slots:45 words*/82);  
+}
+
+static inline void pdma_ch2_bleTx_setting__aesccmEN0(uint16_t ramStartAddr)
+{
+    RF_WT08(0xC0, 0x00);  //AESCCM  [0]AESCCM_EN = 0
+    pdma_ch2_dt_bletx(0x00030000+ramStartAddr, 0x00010000+0x0020, /*length*/37 );   // RTR, TRT, LLC
+  //pdma_ch2_dt_bletx(0x00030000+ramStartAddr, 0x00010000+0x0020, /*length*/255);
+}
+static inline void pdma_ch2_bleTx_setting_l2cap__aesccmEN0(uint16_t ramStartAddr, uint8_t length)
+{
+    RF_WT08(0xC0, 0x00);  //AESCCM  [0]AESCCM_EN = 0
+    pdma_ch2_dt_bletx(0x00030000+ramStartAddr, 0x00010000+0x0020, length );
+}
+
+/* Exported functions --------------------------------------------------------------------------------------*/
+void pdma_ram_bleRx_read_payload(uint16_t ramStartAddr, uint16_t read_length, unsigned char *);
+void pdma_ram_bleTx_write_payload(uint16_t ramStartAddr, uint16_t length, unsigned char *);
+
+
+
+#endif /* __PDMA_H ------------------------------------------------------------------------------------*/

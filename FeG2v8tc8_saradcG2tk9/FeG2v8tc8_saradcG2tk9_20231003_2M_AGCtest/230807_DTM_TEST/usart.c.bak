@@ -1,0 +1,144 @@
+/*********************************************************************************************************//**
+ * @file    usart.c
+ * @version $Rev:: 929          $
+ * @date    $Date:: 2016-11-02 #$
+ * @brief   This file provides all UART functions.
+ *************************************************************************************************************
+ * @attention
+ *
+ * Firmware Disclaimer Information
+ *
+ * 1. The customer hereby acknowledges and agrees that the program technical documentation, including the
+ *    code, which is supplied by Holtek Semiconductor Inc., (hereinafter referred to as "HOLTEK") is the
+ *    proprietary and confidential intellectual property of HOLTEK, and is protected by copyright law and
+ *    other intellectual property laws.
+ *
+ * 2. The customer hereby acknowledges and agrees that the program technical documentation, including the
+ *    code, is confidential information belonging to HOLTEK, and must not be disclosed to any third parties
+ *    other than HOLTEK and the customer.
+ *
+ * 3. The program technical documentation, including the code, is provided "as is" and for customer reference
+ *    only. After delivery by HOLTEK, the customer shall use the program technical documentation, including
+ *    the code, at their own risk. HOLTEK disclaims any expressed, implied or statutory warranties, including
+ *    the warranties of merchantability, satisfactory quality and fitness for a particular purpose.
+ *
+ * <h2><center>Copyright (C) 2016 Holtek Semiconductor Inc. All rights reserved</center></h2>
+ ************************************************************************************************************/
+
+/* Includes ------------------------------------------------------------------------------------------------*/
+#include <stdint.h>
+#include "hwlib/socal/hps.h"
+#include "hwlib/socal/socal.h"
+#include "hwlib/socal/alt_uart.h"
+
+#include "usart.h"
+
+/** @addtogroup UART_PutChar_label
+ *  @{
+ */
+
+
+
+/* Private define ------------------------------------------------------------------------------------------*/
+
+
+/* Private variables ---------------------------------------------------------------------------------------*/
+
+/* UART0 definitions                                                                                        */
+           uint8_t  UR0TxBuf[USART_BUFSIZE];
+  volatile uint32_t UR0TxReadIndex = 0;
+  volatile uint32_t UR0TxWriteIndex = 0;
+
+//         uint8_t  UR0RxBuf[USART_BUFSIZE];
+//volatile uint32_t UR0RxReadIndex = 0;
+//volatile uint32_t UR0RxWriteIndex = 0;
+
+
+/* Global functions ----------------------------------------------------------------------------------------*/
+
+/*********************************************************************************************************//**
+ * @brief   
+ * @retval  None
+ ************************************************************************************************************/
+void uart_putchar(unsigned char c)
+{
+        while (IS_BUFFER_FULL(UR0TxReadIndex, UR0TxWriteIndex)) {
+          //alt_setbits_word(ALT_UART_IER_DLH_ADDR(ALT_UART0_ADDR), 0x80|0x02 ); // ENABLE TX
+            alt_setbits_word(ALT_UART_IER_DLH_ADDR(ALT_UART0_ADDR), ALT_UART_IER_DLH_PTIME_DLH7_SET_MSK|ALT_UART_IER_DLH_ETBEI_DLHL_SET_MSK ); // ENABLE TX
+          //waiting...
+        }
+        UR0TxBuf[UR0TxWriteIndex] = c;
+        UR0TxWriteIndex = (UR0TxWriteIndex + 1) & (USART_BUFSIZE-1);
+
+          //alt_setbits_word(ALT_UART_IER_DLH_ADDR(ALT_UART0_ADDR), 0x80|0x02 ); // ENABLE TX
+            alt_setbits_word(ALT_UART_IER_DLH_ADDR(ALT_UART0_ADDR), ALT_UART_IER_DLH_PTIME_DLH7_SET_MSK|ALT_UART_IER_DLH_ETBEI_DLHL_SET_MSK ); // ENABLE TX
+}
+
+void uart_putchar_n(unsigned char c)
+{
+  #if _UART_PUT_DEBUG_ == 1
+    if('\n' == c)
+    {
+        uart_putchar(0x0D);
+        uart_putchar(0x0A);
+    }
+    else
+    {
+        uart_putchar(c);
+    }
+  #endif
+}
+void uart_puts(char *p_str)
+{
+  #if _UART_PUT_DEBUG_ == 1
+    while(*p_str) {
+        uart_putchar(*p_str++);
+    }
+  #endif
+}
+void lownibble_to_ascii(unsigned char c)
+{
+  #if _UART_PUT_DEBUG_ == 1
+    c &= 0x0F;
+    if( c < 10 )        // 0~9
+         uart_putchar('0'+c);
+    else                // 10~15
+         uart_putchar('A'+c-10);
+  #endif
+}
+void uart_putu8(unsigned char c)
+{
+  #if _UART_PUT_DEBUG_ == 1
+    lownibble_to_ascii(c>>4);    //high nibble
+    lownibble_to_ascii(c);       //low  nibble
+  #endif
+}
+void uart_putu16(unsigned int c)
+{
+  #if _UART_PUT_DEBUG_ == 1
+    lownibble_to_ascii(c>>12);   //high nibble
+    lownibble_to_ascii(c>>8);    //low  nibble
+    lownibble_to_ascii(c>>4);    //high nibble
+    lownibble_to_ascii(c);       //low  nibble
+  #endif
+}
+void uart_putu32(uint32_t c)
+{
+  #if _UART_PUT_DEBUG_ == 1
+    lownibble_to_ascii(c>>28);   //
+    lownibble_to_ascii(c>>24);   //
+    lownibble_to_ascii(c>>20);   //
+    lownibble_to_ascii(c>>16);   //
+    lownibble_to_ascii(c>>12);   //high nibble
+    lownibble_to_ascii(c>>8);    //low  nibble
+    lownibble_to_ascii(c>>4);    //high nibble
+    lownibble_to_ascii(c);       //low  nibble
+  #endif
+}
+
+
+
+
+/**
+  * @}
+  */

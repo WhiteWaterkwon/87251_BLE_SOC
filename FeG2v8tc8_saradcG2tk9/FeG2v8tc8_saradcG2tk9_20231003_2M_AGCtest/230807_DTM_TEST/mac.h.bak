@@ -1,0 +1,176 @@
+/*********************************************************************************************************//**
+ * @file    mac.h
+ * @version $Rev:: 101          $
+ * @date    $Date:: 2021-10-10 #$
+ * @brief   The header file of the MAC functions.
+ *************************************************************************************************************
+ * @attention
+ *
+ * Firmware Disclaimer Information
+ *
+ * 1. The customer hereby acknowledges and agrees that the program technical documentation, including the
+ *    code, which is supplied by Holtek Semiconductor Inc., (hereinafter referred to as "HOLTEK") is the
+ *    proprietary and confidential intellectual property of HOLTEK, and is protected by copyright law and
+ *    other intellectual property laws.
+ *
+ * 2. The customer hereby acknowledges and agrees that the program technical documentation, including the
+ *    code, is confidential information belonging to HOLTEK, and must not be disclosed to any third parties
+ *    other than HOLTEK and the customer.
+ *
+ * 3. The program technical documentation, including the code, is provided "as is" and for customer reference
+ *    only. After delivery by HOLTEK, the customer shall use the program technical documentation, including
+ *    the code, at their own risk. HOLTEK disclaims any expressed, implied or statutory warranties, including
+ *    the warranties of merchantability, satisfactory quality and fitness for a particular purpose.
+ *
+ * <h2><center>Copyright (C) 2021 Holtek Semiconductor Inc. All rights reserved</center></h2>
+ ************************************************************************************************************/
+
+/* Define to prevent recursive inclusion -------------------------------------------------------------------*/
+#ifndef __HT_MAC_H
+#define __HT_MAC_H
+
+/* Includes ------------------------------------------------------------------------------------------------*/
+
+
+/* Exported constants --------------------------------------------------------------------------------------*/
+#define PDUTYPE_MASK                    0x0F        // 0b1111
+#define PDUTYPE_ADV_IND                 0x00        // 0b0000
+#define PDUTYPE_ADV_DIRECT_IND          0x01        // 0b0001
+#define PDUTYPE_ADV_NONCONN_IND         0x02        // 0b0010
+#define PDUTYPE_SCAN_REQ                0x03        // 0b0011
+#define PDUTYPE_SCAN_RSP                0x04        // 0b0100
+#define PDUTYPE_CONNECT_IND             0x05        // 0b0101
+#define PDUTYPE_ADV_SCAN_IND            0x06        // 0b0110
+#define PDUTYPE_EXT_IND			0x07	    // 0b0111	//ADV_EXT_IND AUX_ADV_IND AUX_SCAN_RSP AUX_SYNC_IND AUX_CHAIN_IND 
+
+/* Exported types ------------------------------------------------------------------------------------------*/
+
+typedef union
+{
+    struct {
+        uint16_t llid   : 2;
+        uint16_t nesn   : 1;
+        uint16_t sn     : 1;
+        uint16_t md     : 1;
+        uint16_t rfu    : 3;
+        uint16_t length : 8;
+    } field;
+    uint16_t reg;
+
+} LLDATA_PDU_HDR_TypeDef;
+
+
+typedef union
+{
+    struct {
+        uint8_t type   : 4;
+        uint8_t rfu    : 1;
+        uint8_t chsel  : 1;
+        uint8_t txadd  : 1;
+        uint8_t rxadd  : 1;
+    } field;
+    uint8_t s0;
+
+} ADV_PDU_HDR_S0_TypeDef;
+typedef union
+{
+    struct {
+        uint16_t type   : 4;
+        uint16_t rfu    : 1;
+        uint16_t chsel  : 1;
+        uint16_t txadd  : 1;
+        uint16_t rxadd  : 1;
+        uint16_t length : 8;
+    } field;
+    uint16_t reg;
+
+} ADV_PDU_HDR_TypeDef;
+
+typedef struct
+{
+//  uint16_t                offset;
+//  uint16_t                length;
+    ADV_PDU_HDR_TypeDef     header;
+//  uint8_t                 tag1;
+//  uint8_t                 tag2;
+    uint8_t                 payload[37];
+
+} ADVPDU_TypeDef;
+
+
+typedef struct __attribute__((packed))
+{
+    uint8_t  advA[6];
+    uint8_t  advData[31];
+
+} ADV_IND_PAYLOAD_TypeDef;
+
+typedef struct __attribute__((packed))
+{
+    uint8_t  advA[6];
+    uint8_t  targetA[6];
+
+} ADV_DIRECT_IND_PAYLOAD_TypeDef;
+
+typedef struct __attribute__((packed))
+{
+    uint8_t  advA[6];
+    uint8_t  advData[31];
+
+} ADV_NONCONN_IND_PAYLOAD_TypeDef;
+
+typedef struct __attribute__((packed))
+{
+    uint8_t  advA[6];
+    uint8_t  advData[31];
+
+} ADV_SCAN_IND_PAYLOAD_TypeDef;
+
+typedef struct __attribute__((packed))
+{
+    uint8_t  scanA[6];
+    uint8_t  advA[6];
+
+} SCAN_REQ_PAYLOAD_TypeDef;
+
+typedef struct __attribute__((packed))
+{
+    uint8_t  advA[6];
+    uint8_t  scanRspData[31];
+
+} SCAN_RSP_PAYLOAD_TypeDef;
+
+typedef struct __attribute__((packed))
+{
+    uint32_t AA;
+    uint8_t  crcInit[3];
+    uint8_t  winSize;
+    uint16_t winOffset;
+    uint16_t interval;
+    uint16_t latency;
+    uint16_t timeout;
+    uint8_t  chM[5];
+    uint8_t  hop: 5;
+    uint8_t  sca: 3;
+
+} CONN_IND_LLDATA_TypeDef;
+
+typedef struct __attribute__((packed))
+{
+    uint8_t  initA[6];
+    uint8_t  advA[6];
+    CONN_IND_LLDATA_TypeDef llData;
+
+} CONN_IND_PAYLOAD_TypeDef;
+
+
+/* Exported macro ------------------------------------------------------------------------------------------*/
+
+
+/* Exported functions --------------------------------------------------------------------------------------*/
+
+
+#endif /* __HT_MAC_H */
+
+
+

@@ -1,0 +1,85 @@
+/*********************************************************************************************************//**
+ * @file    advrxq.h
+ * @version $Rev:: 100          $
+ * @date    $Date:: 2022-02-22 #$
+ * @brief   
+ *************************************************************************************************************
+ * @attention
+ *
+ * Firmware Disclaimer Information
+ *
+ * 1. The customer hereby acknowledges and agrees that the program technical documentation, including the
+ *    code, which is supplied by Holtek Semiconductor Inc., (hereinafter referred to as "HOLTEK") is the
+ *    proprietary and confidential intellectual property of HOLTEK, and is protected by copyright law and
+ *    other intellectual property laws.
+ *
+ * 2. The customer hereby acknowledges and agrees that the program technical documentation, including the
+ *    code, is confidential information belonging to HOLTEK, and must not be disclosed to any third parties
+ *    other than HOLTEK and the customer.
+ *
+ * 3. The program technical documentation, including the code, is provided "as is" and for customer reference
+ *    only. After delivery by HOLTEK, the customer shall use the program technical documentation, including
+ *    the code, at their own risk. HOLTEK disclaims any expressed, implied or statutory warranties, including
+ *    the warranties of merchantability, satisfactory quality and fitness for a particular purpose.
+ *
+ * <h2><center>Copyright (C) 2022 Holtek Semiconductor Inc. All rights reserved</center></h2>
+ ************************************************************************************************************/
+
+/* Define to prevent recursive inclusion -------------------------------------------------------------------*/
+#ifndef HT_ADVRXQ_H
+#define HT_ADVRXQ_H
+
+/* Includes ------------------------------------------------------------------------------------------------*/
+#include "mac.h"                       // ADVPDU_TypeDef
+#include "ringbuf.h"
+
+//#include "FreeRTOS.h"
+//#include "task.h"
+//#include "queue.h"
+
+
+/* Exported constants --------------------------------------------------------------------------------------*/
+#define TOTAL_NUM_ELEMENTS_advRxQ      (2U << 0)  // must be power of 2, must >= TOTAL_NUM_LE_ADV_PACKETS_RX
+
+
+/* Exported types ------------------------------------------------------------------------------------------*/
+typedef struct
+{
+    void * pRBuf[TOTAL_NUM_ELEMENTS_advRxQ];    // element: pointer to advRxQ_nodebuffer_TypeDef
+    uint32_t widx;
+    uint32_t ridx;
+} advRxQ_TypeDef ;                              // ring buffer queue, buffer received air packets
+extern advRxQ_TypeDef advRxQ;
+
+
+
+
+#define TOTAL_NUM_LE_ADV_PACKETS_RX       (TOTAL_NUM_ELEMENTS_advRxQ - 0)
+typedef struct //__attribute__((packed))
+{
+    ADVPDU_TypeDef              advpdu;
+    uint8_t                     rrrstate ;          // 0x00:free, 0x01:booked
+
+} advRxQ_nodebuffer_TypeDef ;
+extern advRxQ_nodebuffer_TypeDef AdvRxQBUFF[TOTAL_NUM_LE_ADV_PACKETS_RX];
+
+
+/* Exported macro ------------------------------------------------------------------------------------------*/
+
+
+/* Exported functions --------------------------------------------------------------------------------------*/
+void initial_advRxQ(void);
+void process_advRxQ(void);
+
+                       bool irq1isr_advRxQBuff_isAvailable(void);
+advRxQ_nodebuffer_TypeDef * irq1isr_advRxQBuff_alloc(void);
+              unsigned char irq1isr_read_rxfifo_to_advRxQ(uint16_t ramStartAddr, uint16_t rxHeader);
+
+static inline void advRxQBuff_free(advRxQ_nodebuffer_TypeDef * pBuff)
+{
+    pBuff->rrrstate = 0x00;  // 0x00:free, 0x01:booked
+}
+
+void read_ctepld_and_formatting (uint8_t cte_sample_count, uint8_t shift_bits, unsigned char*);
+
+#endif /* HT_ADVRXQ_H */
