@@ -1215,7 +1215,7 @@ void init_2fpga_directed_test_mode(uint8_t tx_rx_select, uint8_t channel,uint8_t
    }
    else if(phy == 0x02)
    {
-     RF_WT08(0x60, 0x1C); //AGC1    [1:0]AGC_CMP_THD    AGC comparison number threshold, 0:continuos AGC until SYNCWORD is detected, 1~3:comparison number thrshold
+     RF_WT08(0x60, 0x2C); //AGC1    [1:0]AGC_CMP_THD    AGC comparison number threshold, 0:continuos AGC until SYNCWORD is detected, 1~3:comparison number thrshold
                                         //        [3:2]ZONE_OFFSET
                                         //        [6:4]OFFSET_SEL
                                         //        [7]  MPT_0DB_EN     Force max point = 0dB enable
@@ -1233,7 +1233,7 @@ void init_2fpga_directed_test_mode(uint8_t tx_rx_select, uint8_t channel,uint8_t
                                         //        [2:0]AGC_ST         AGC state machine's state, 0x7:AGC_complete
                                         //        [3]-
                                         //        [7:4]GAIN_SEL       gain curve select 
-    RF_WT08(0x63, 0x28); 
+    RF_WT08(0x63, 0x1E); 
     //RF_WT08(0x63, 0x14); 
     //RF_WT08(0x63, 0x10); 
     //RF_WT08(0x63, 0x11); 
@@ -1265,8 +1265,8 @@ void init_2fpga_directed_test_mode(uint8_t tx_rx_select, uint8_t channel,uint8_t
    }
    else if(phy == 0x02)
    {
-   	//RF_WT08(0xB1, 0x1F);  //111
-     RF_WT08(0xB1, 0x10);  		//AGC_BYPASS[1:0]	AGC_FLT_SEL	ABORT_TIME[4:0]
+   	RF_WT08(0xB1, 0x08);  //111
+     //RF_WT08(0xB1, 0x10);  		//AGC_BYPASS[1:0]	AGC_FLT_SEL	ABORT_TIME[4:0]
    }   
    else
    {
