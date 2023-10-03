@@ -1265,8 +1265,8 @@ void init_2fpga_directed_test_mode(uint8_t tx_rx_select, uint8_t channel,uint8_t
    }
    else if(phy == 0x02)
    {
-   	RF_WT08(0xB1, 0x1F); 
-     //RF_WT08(0xB1, 0x10);  		//AGC_BYPASS[1:0]	AGC_FLT_SEL	ABORT_TIME[4:0]
+   	//RF_WT08(0xB1, 0x1F); 
+     RF_WT08(0xB1, 0x10);  		//AGC_BYPASS[1:0]	AGC_FLT_SEL	ABORT_TIME[4:0]
    }   
    else
    {
