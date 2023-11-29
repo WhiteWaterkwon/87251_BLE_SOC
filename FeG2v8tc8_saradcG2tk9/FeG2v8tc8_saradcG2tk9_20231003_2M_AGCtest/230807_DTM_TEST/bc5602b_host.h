@@ -38,7 +38,7 @@
 /* Exported constants --------------------------------------------------------------------------------------*/
 #define  MAX_ROUNDTRIPS_CE                  1
 #define  __MALLOC_METHOD__                  1               // 1,2
-#define Debug_COUNT_CRCF       0
+#define Debug_COUNT_CRCF     2
 
 // <<< Use Configuration Wizard in Context Menu >>>
 
@@ -206,6 +206,14 @@ void bc5602B_initial(void);
 void bc5602B_process(void);
 void debug_hcfsm_state_ST_0(void);
 void debug_hcfsm_state_ST_Sean_IDLE(void);
+
+/*
+unsigned char debug_rssi_id_ok_note_max[100];
+unsigned char debug_rssi_id_ok_note_min[100];
+unsigned char debug_rssi_gainsel_note_max[100];
+unsigned char debug_rssi_gainsel_note_min[100];
+*/
+extern unsigned char debug_power;
 
 void set_txHeader_txPayload_advIND(uint8_t *pAdvA, uint8_t advDataLength, uint8_t *pAdvData);
 

@@ -62,4 +62,7 @@ bool irq1isr_DTM_TX_event_is_closed(void);
 bool irq1isr_DTM_RX_event_is_closed(void);
 bool irq1isr_DTM_RX_RXDR_CTE_event_is_closed(void);
 bool irq1isr_EXT_TX_event_is_closed(void);
+
+void debug_rssi_clear_count(void);
+
 #endif /* __BC5602_IRQ1_ISR_H */

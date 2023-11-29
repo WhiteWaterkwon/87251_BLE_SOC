@@ -468,8 +468,8 @@ void  format_with_saturation(uint8_t sample_count, unsigned char *pch )
                ctepld[15]= ((test_H&mask_H)<<(0+1))+((test_L&mask_L)>>(7-0));	     	
 	}
 	*/
-	//shift_bits = 0;
-	shift_bits = 1;
+	shift_bits = 0;
+	//shift_bits = 1;
 	mask_H = 0x7F>>shift_bits;
 	mask_L = 0xFF<<(8-shift_bits);
 	for(i=0;i<sample_count;i++)

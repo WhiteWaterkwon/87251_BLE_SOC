@@ -61,6 +61,12 @@ extern CONN_IND_PAYLOAD_TypeDef rxConnIndPayload;
 static unsigned char iq_sample[164];
 static unsigned char debug_ctepld[1024];
 
+unsigned char debug_rssi_id_ok_note_max[110];
+unsigned char debug_rssi_id_ok_note_min[110];
+unsigned char debug_rssi_gainsel_note_max[110];
+unsigned char debug_rssi_gainsel_note_min[110];
+
+
 /* Global functions ----------------------------------------------------------------------------------------*/
 void init_0rf_5602B(void);
 void init_0rf_5602G2TC8_v8(uint8_t phy);
@@ -245,6 +251,8 @@ uint32_t ppm_x_sinceLastAnchorIn1250us_to_slaveRXTO25us(uint32_t ppm, uint32_t s
 }
 
 /********************************************************************************/
+
+
 /*
 static unsigned char reverse_order_foo(unsigned char a)
 {
@@ -928,7 +936,7 @@ void init_2fpga_directed_test_mode(uint8_t tx_rx_select, uint8_t channel,uint8_t
                 RF_WT08(0x03, 0x71);    //P0B3
                 RF_WT08(0x04, 0x71);    //P0B4
     
-  //RF_WT08(0x0A, 0x__);                //TIMEOUT[7:0]  unit 25us
+    RF_WT08(0x0A, 0x19);                //TIMEOUT[7:0]  unit 25us
   //RF_WT08(0x0B, 0x__);                //TIMEOUT[15:8] unit 25us
   //RF_WT08(0x0C, 0x__);                //BC_CNT[7:0]
   //RF_WT08(0x0D, 0x__);                //BC_CNT[15:8]
@@ -1090,8 +1098,8 @@ void init_2fpga_directed_test_mode(uint8_t tx_rx_select, uint8_t channel,uint8_t
                                         //                                                    5h:TX LE coded S=2, RX is auto switch by CI
                                         //                    others:illegal
                                         
-    //RF_WT08(0x43, 0x10);  
-    RF_WT08(0x43, 0x30);                //43h     [7:0]FD_HOLD
+      
+    RF_WT08(0x43, 0x20);                //43h     [7:0]FD_HOLD
     RF_WT08(0x44, 0x80);                //44h     [7:0]PHASE_DSTEP
     RF_WT08(0x45, PKT1_CRC_ADD_EN|0x00);                //45h (unused in BLE mode)
   //RF_WT08(0x45, P5ACTIVE | P4ACTIVE | P3ACTIVE | P2ACTIVE | P1ACTIVE | P0ACTIVE); // (unused in BLE mode)
@@ -1208,21 +1216,21 @@ void init_2fpga_directed_test_mode(uint8_t tx_rx_select, uint8_t channel,uint8_t
 //bank 1
    if( phy == 0x01) // 1 Mbps
    {
-     RF_WT08(0x60, 0x3C); //AGC1    [1:0]AGC_CMP_THD    AGC comparison number threshold, 0:continuos AGC until SYNCWORD is detected, 1~3:comparison number thrshold
+     RF_WT08(0x60, 0x2C); //AGC1    [1:0]AGC_CMP_THD    AGC comparison number threshold, 0:continuos AGC until SYNCWORD is detected, 1~3:comparison number thrshold
                                         //        [3:2]ZONE_OFFSET
                                         //        [6:4]OFFSET_SEL
                                         //        [7]  MPT_0DB_EN     Force max point = 0dB enable
    }
    else if(phy == 0x02)
    {
-     RF_WT08(0x60, 0x1C); //AGC1    [1:0]AGC_CMP_THD    AGC comparison number threshold, 0:continuos AGC until SYNCWORD is detected, 1~3:comparison number thrshold
+     RF_WT08(0x60, 0x2C); //AGC1    [1:0]AGC_CMP_THD    AGC comparison number threshold, 0:continuos AGC until SYNCWORD is detected, 1~3:comparison number thrshold
                                         //        [3:2]ZONE_OFFSET
                                         //        [6:4]OFFSET_SEL
                                         //        [7]  MPT_0DB_EN     Force max point = 0dB enable
    }
    else
    {
-     RF_WT08(0x60, 0x3C);
+     RF_WT08(0x60, 0x2C);
    }
 
    			               
@@ -1233,19 +1241,26 @@ void init_2fpga_directed_test_mode(uint8_t tx_rx_select, uint8_t channel,uint8_t
                                         //        [2:0]AGC_ST         AGC state machine's state, 0x7:AGC_complete
                                         //        [3]-
                                         //        [7:4]GAIN_SEL       gain curve select 
-    RF_WT08(0x63, 0x1A); 
-    //RF_WT08(0x63, 0x14); 
-    //RF_WT08(0x63, 0x10); 
-    //RF_WT08(0x63, 0x11); 
-    //RF_WT08(0x63, 0x30);                //AGC4
-                                        //        [7:0]GAIN_STB[7:0]
+   if( phy == 0x01) // 1 Mbps
+   {
+        RF_WT08(0x63, 0x14);             //AGC4 //        [7:0]GAIN_STB[7:0]
+   }
+   else if(phy == 0x02)
+   {
+	RF_WT08(0x63, 0x14);             //AGC4 //        [7:0]GAIN_STB[7:0]
+   }
+   else
+   {
+        RF_WT08(0x63, 0x14);             //AGC4 //        [7:0]GAIN_STB[7:0]
+   }
+
     RF_WT08(0x64, 0x03);                //FCF1
                                         //        [7:4]MOD_INDEX2[3:0]
                                         //        [3:0]MOD_INDEX1[3:0]
-  //RF_WT08(0x65, 0x44);                //FCF2
+
     RF_WT08(0x65, 0xCC);                //FCF2
                                         //        [7:0]FSCALE[7:0]     todo
-//  RF_WT08(0x66, 0x4C);//IF 600K 16M xtal //FCF3        RX's Fscale(change IF) = IF * 2^20 / (2 * Fxtal) = (600000 * 2^20)/(2*16000000) = 19660.8   19660=0x4CCC
+
     RF_WT08(0x66, 0x1C);//IF 600K 32M xtal //FCF3        RX's Fscale(change IF) = IF * 2^20 / (2 * Fxtal) = (600000 * 2^20)/(2*32000000) =  9830.4    9830=0x2666   1CCC
                                         //        [7]-
                                         //        [6:0]FSCALE[14:8]    todo
@@ -1255,22 +1270,19 @@ void init_2fpga_directed_test_mode(uint8_t tx_rx_select, uint8_t channel,uint8_t
                                         //        [5:0]-
     RF_WT08(0x69, 0x00);		//CPA_DIG [2:0]¡GPA Matching Control.	DBFS_OFFSET[2:0]¡GDBFS fine tune in test mode
 
-    RF_WT08(0xB0, 0x04);  		
-
+    RF_WT08(0xB0, 0x04);  
   	
-   // RF_WT08(0xB1, 0x28); 
    if( phy == 0x01) // 1 Mbps
    {
-      RF_WT08(0xB1, 0x08);  		//AGC_BYPASS[1:0]	AGC_FLT_SEL	ABORT_TIME[4:0]
+      RF_WT08(0xB1, 0x02);  		//AGC_BYPASS[1:0]	AGC_FLT_SEL	ABORT_TIME[4:0]
    }
    else if(phy == 0x02)
    {
-   	RF_WT08(0xB1, 0x04);  //111
-     //RF_WT08(0xB1, 0x10);  		//AGC_BYPASS[1:0]	AGC_FLT_SEL	ABORT_TIME[4:0]
+   	RF_WT08(0xB1, 0x02);  //111
    }   
    else
    {
-   	RF_WT08(0xB1, 0x08);  		//AGC_BYPASS[1:0]	AGC_FLT_SEL	ABORT_TIME[4:0]
+   	RF_WT08(0xB1, 0x02);  		//AGC_BYPASS[1:0]	AGC_FLT_SEL	ABORT_TIME[4:0]
    }                        
       RF_WT08(0x6A, 0x35);                //DA1     [7]TPCALF    [6]TPCAC_EN     [5:4]TPCAL_TC  [3:1]DLY_TPCAL   [0]TPCAL_EN
 
@@ -1292,7 +1304,6 @@ void init_2fpga_directed_test_mode(uint8_t tx_rx_select, uint8_t channel,uint8_t
   if( phy == 0x01) // 1 Mbps
   {
     RF_WT08(0x3D, 0x57);                //DA20
-  //RF_WT08(0x3D, 0x47);                //DA20
     RF_WT08(0x3E, 0x1D);                //DA21    [7]-  [6]DAC_R_CHCEN:DAC read channel enable    [5:0]DAC_R_CHCS: DAC read channel selection
   }
   else if(phy == 0x02) // 2 Mbps
@@ -1302,7 +1313,7 @@ void init_2fpga_directed_test_mode(uint8_t tx_rx_select, uint8_t channel,uint8_t
   }
 
 //bank 2
-    RF_WT08(0x80, 0x57);                //RXG
+    RF_WT08(0x80, 0x2C);                //RXG
                                         //        [1:0]GAIN_LNA[1:0] 00:ultralow gain, 01:low gain, 10:middle gain, 11:high gain
                                         //        [2]  GAIN_MX       0:low gain, 1:high gain
                                         //        [4:3]GAIN_BPF[1:0] 00:12dB, 01:18dB, 10:24dB, 11:24dB
@@ -1319,14 +1330,13 @@ void init_2fpga_directed_test_mode(uint8_t tx_rx_select, uint8_t channel,uint8_t
     RF_WT08(0x85, 0xC1);                //CP1
     RF_WT08(0x86, 0xFF);                //CP2     [3:0]CX_M
                                         //        [7:4]IB_CP_M
-  //RF_WT08(0x87, 0xCB);//2021may11     //CP3     [0]  ALPF_EN
-  //RF_WT08(0x87, 0xA2);//2021          //CP3     [0]  ALPF_EN
+
     RF_WT08(0x87, 0x01);//BLE           //CP3     [0]  ALPF_EN
                                         //        [2:1]PZ
                                         //        [4:3]P3RD
                                         //        [7:5]DLY_SYN[2:0] 000:16us, 001:20us, 010:24us, 011:28us, 100:32us, 101:36us, 110:40us, 111:100us
     RF_WT08(0x88, 0x03);                //OD1     [5]  RESET_DSM: Reset DSM modulator
-//  RF_WT08(0x89, 0x41);                //OD2     [7:6]DLY_SXPD   00:55us, 01:70us, 10:90us, 11:127us
+
     RF_WT08(0x89, 0x01);//debug         //OD2     [7:6]DLY_SXPD   00:55us, 01:70us, 10:90us, 11:127us
 
   //RF_WT08(0x92, 0xAE);                //92h     [0]  PAD_EN     TX PA driver enable
@@ -1361,15 +1371,13 @@ void init_2fpga_directed_test_mode(uint8_t tx_rx_select, uint8_t channel,uint8_t
                                         //        [0]  DCOC_ENB: RX DCOC (server loop) disable
     RF_WT08(0x99, 0x57);                //LD1
 
-//  RF_WT08(0x9A, 0x17); //1.1          //LD2     [7:6]CT_DIGLDO  00:1.1V, 01:1.2V, 10:1.3V, 11:1.4V
-//  RF_WT08(0x9A, 0x57); //1.2          //LD2     [7:6]CT_DIGLDO  00:1.1V, 01:1.2V, 10:1.3V, 11:1.4V
-    RF_WT08(0x9A, 0x97); //1.3          //LD2     [7:6]CT_DIGLDO  00:1.1V, 01:1.2V, 10:1.3V, 11:1.4V
-//  RF_WT08(0x9A, 0xD7); //1.4          //LD2     [7:6]CT_DIGLDO  00:1.1V, 01:1.2V, 10:1.3V, 11:1.4V
 
-//  RF_WT08(0x9B, 0x03); // 00          //LD3     [7:6]IB_BG=00
+    RF_WT08(0x9A, 0x97); //1.3          //LD2     [7:6]CT_DIGLDO  00:1.1V, 01:1.2V, 10:1.3V, 11:1.4V
+
+
+
     RF_WT08(0x9B, 0x43); // 01          //LD3     [7:6]IB_BG=01
-//  RF_WT08(0x9B, 0x83); // 10          //LD3     [7:6]IB_BG=10
-//  RF_WT08(0x9B, 0xC3); // 11          //LD3     [7:6]IB_BG=11
+
 
     RF_WT08(0x9C, 0x13);                //XO1
                                         //        [7]  XO_IL
@@ -1444,6 +1452,7 @@ void init_2fpga_directed_test_mode(uint8_t tx_rx_select, uint8_t channel,uint8_t
 
 
 ////////////////////////////////////////
+
 void debug_foo_000s(void)
 {
     //
@@ -2428,7 +2437,7 @@ init_0rf_5602B_rewrite_RXG_to_cover_fpgaWriteRXG0x00();//debug
     		//init_0rf_5602B_rewrite_RXG_to_cover_fpgaWriteRXG0x00();//debug
     		//set_disabledTxen0_disabledRxen1();  
 		set_disabledTxen0_disabledRxen0();	
-	        RF_WT08(0x33, 0x04); 		 //MASK [7]MASK_CRCF, [6]MASK_RX, [5]MASK_TX, [4]MASK_MAX_RT, [3]MASK_ADDRESS, [2]MASK_BCMATCH, [1]MASK_RX_TO, [0]-
+	        RF_WT08(0x33, 0x00); 		 //MASK [7]MASK_CRCF, [6]MASK_RX, [5]MASK_TX, [4]MASK_MAX_RT, [3]MASK_ADDRESS, [2]MASK_BCMATCH, [1]MASK_RX_TO, [0]-
                 
                 RF_WT08(0xE0, 0x00 | 0x00 | 0x00);                
                 clear_34h_irq1(); 
@@ -2448,7 +2457,7 @@ init_0rf_5602B_rewrite_RXG_to_cover_fpgaWriteRXG0x00();//debug
     }  
    case ST_DTM_RX_STROBE:   
     {
-    	
+    		RF_WT08(0x0A, 0x19);                //TIMEOUT[7:0]  unit 25us
                // irq1isr_open_DTM_scanning_event(pacl, scan_anchor  );	                          			
                    irq1isr_open_DTM_scanning_event(pacl);                       	   
              	   strobe_RX();
@@ -2469,7 +2478,7 @@ init_0rf_5602B_rewrite_RXG_to_cover_fpgaWriteRXG0x00();//debug
 		}
 		
     		strobe_RX(); 
-    		debug_RFLA_pulse_to_trigger_LA();
+    		//debug_RFLA_pulse_to_trigger_LA();
                // irq1isr_open_DTM_scanning_event(pacl, scan_anchor  );	                          			
                 irq1isr_open_DTM_scanning_event(pacl);                       	   
                 hcfsm.state = ST_DTM_RX_W4_CLOSE_EVENT;

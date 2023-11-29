@@ -84,7 +84,14 @@ hc_command_buffer_TypeDef HcCommandBUFF[1];
 
 /* Private variables ---------------------------------------------------------------------------------------*/
 uint8_t phyTx_pdudata ;
-uint8_t debug_wantedpower = 0x08;
+uint8_t debug_wantedpower = 0xFF;
+
+extern unsigned char debug_rssi_id_ok_note_max[100];
+extern unsigned char debug_rssi_id_ok_note_min[100];
+extern unsigned char debug_rssi_gainsel_note_max[100];
+extern unsigned char debug_rssi_gainsel_note_min[100];
+
+unsigned char debug_power ;
 const uint8_t ChannelIndex_table[40]={37,0,1,2,3,4,5,6,7,8,9,10,38,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,39};
 
 const uint8_t pn9_seq[128]= { // pn9 cycle 511 bits, here repeated 2 times, in case large packet length
@@ -165,7 +172,7 @@ bool proc_hcmsg_send_hcievent(hcmsgQ_node_TypeDef *qNode)
             uart_putchar(qNode->msgparam[4+i]);         // 4+i: uint8_t msgparam[4]
         }
 //  #endif
-	debug_RFLA_pulse_to_trigger_LA();
+	//debug_RFLA_pulse_to_trigger_LA();
         return 1;
 }
 
@@ -1720,17 +1727,20 @@ bool hcmd_201d_le_receiver_test_v1(HCI_01_COMMAND_PACKET_TypeDef *pCmd)
     init_0rf_2in1_5602B_set_rfch(phyRx_rx_channel);
     init_2fpga_directed_test_mode(0,phyRx_rx_channel,0x01,0x00,0x00,0xFF);    		
     leTestEnd_evt.num_packets   =0;
-    debug_wantedpower = debug_wantedpower + 2;
+    debug_wantedpower = debug_wantedpower + 1;
 	#if Debug_COUNT_CRCF == 1	
         debug_leTestEnd_evt.num_packets        = 0x0000; //Number_Of_Packets:      Number_Of_Packets for a transmitter test shall be reported as 0x0000  
         debug_leTestEnd_evt.num_crcf	       = 0x0000;
         debug_leTestEnd_evt.num_synclost       = 0x0000;  
-	#endif         
+	#endif    
+	#if Debug_COUNT_CRCF == 2
+	  debug_power = debug_wantedpower;
+          debug_rssi_clear_count();
+        #endif     
     LEACL_TypeDef *pacl;
     pacl = leacl_alloc();
     pacl->role = 0x04;                 // 0x00:master, 0x01:slave 0x04:dtm_rx
     pacl->channel = phyRx_rx_channel;
-    pacl->debug_power = debug_wantedpower;
     debug_hcfsm_state_ST_0();    
     return send_04_hciEvent_0e_command_complete(0x201d, 0x00); //ERR_00_SUCCESS
 }
@@ -1792,11 +1802,11 @@ bool hcmd_201e_le_transmitter_test_v1(HCI_01_COMMAND_PACKET_TypeDef *pCmd)
 
 bool hcmd_201f_le_test_end(HCI_01_COMMAND_PACKET_TypeDef *pCmd)
 {
+    int i;
     debug_hcfsm_state_ST_Sean_IDLE();
-    
-    
+          
     #if Debug_COUNT_CRCF == 0 
-     return send_04_hciEventPacket((HCI_04_EVENT_PACKET_TypeDef *)&leTestEnd_evt);
+     return send_04_hciEventPacket((HCI_04_EVENT_PACKET_TypeDef *)&leTestEnd_evt);     
     #elif Debug_COUNT_CRCF == 1 
      debug_leTestEnd_evt.num_synclost = 0x03E8 - (debug_leTestEnd_evt.num_packets + debug_leTestEnd_evt.num_crcf);
      uart_putchar(0x04);
@@ -1812,8 +1822,35 @@ bool hcmd_201f_le_test_end(HCI_01_COMMAND_PACKET_TypeDef *pCmd)
      uart_putchar(debug_leTestEnd_evt.num_crcf>>8);
      uart_putchar(debug_leTestEnd_evt.num_synclost);
      uart_putchar(debug_leTestEnd_evt.num_synclost>>8);    
-     return 1;       
-   #endif  
+     return 1;
+     #elif Debug_COUNT_CRCF == 2
+             uart_putchar(0x04);
+	     uart_putchar(0x0E);
+	     uart_putchar(0x06);
+	     uart_putchar(0x01);
+	     uart_putchar(0x1F);
+	     uart_putchar(0x20);
+	     uart_putchar(0x00);
+	     uart_putchar(leTestEnd_evt.num_packets);
+	     uart_putchar(leTestEnd_evt.num_packets>>8);
+             
+             if(debug_power == 100)
+             {
+             	uart_putchar(0x04);         
+	        uart_putchar(0xFF);
+	        uart_putchar(0xFF);
+	        for(i=0;i<101;i++)
+	        {
+	          uart_putchar(i);
+	          uart_putchar(debug_rssi_id_ok_note_max[i]);
+	          uart_putchar(debug_rssi_id_ok_note_min[i]);
+	          uart_putchar(debug_rssi_gainsel_note_max[i]);
+	          uart_putchar(debug_rssi_gainsel_note_min[i]);  
+	        }  
+
+             }          
+             return 1;
+     #endif  
 }
 
 bool hcmd_2020_le_remote_conn_param_req_reply(HCI_01_COMMAND_PACKET_TypeDef *pCmd)
@@ -2102,13 +2139,15 @@ bool hcmd_2033_le_receiver_test_v2(HCI_01_COMMAND_PACKET_TypeDef *pCmd)
     init_2fpga_directed_test_mode(0,phyRx_rx_channel,pCmd2033->phy,pCmd2033->modulation_index,0x00,0xFF);    	
     //init_2fpga_directed_test_mode(0,phyRx_rx_channel,0x02,0x00,0x00,0xFF);    	
     leTestEnd_evt.num_packets   =0; 
-    debug_wantedpower = debug_wantedpower + 2;   
-    
+    debug_wantedpower = debug_wantedpower + 1;     
+	#if Debug_COUNT_CRCF == 2
+	  debug_power = debug_wantedpower;
+          debug_rssi_clear_count();
+        #endif 
     LEACL_TypeDef *pacl;
     pacl = leacl_alloc();
     pacl->role = 0x04;                 // 0x00:master, 0x01:slave 0x04:dtm_rx
     pacl->channel = phyRx_rx_channel;
-    pacl->debug_power = debug_wantedpower;	
     debug_hcfsm_state_ST_0(); 
     
     return send_04_hciEvent_0e_command_complete(0x2033, ERR_00_SUCCESS);

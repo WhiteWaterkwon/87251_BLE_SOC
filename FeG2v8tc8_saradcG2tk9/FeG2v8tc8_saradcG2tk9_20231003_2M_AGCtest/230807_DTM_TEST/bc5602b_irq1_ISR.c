@@ -65,6 +65,16 @@ static          bool     first_roundtrip_in_a_ce;
 static volatile uint8_t  irq1isr_TRT_event_kind; // 1:TRT event, 0:T1 only
 static unsigned char iq_sample[164];
 
+
+extern unsigned char debug_rssi_id_ok_note_max[110];
+extern unsigned char debug_rssi_id_ok_note_min[110];
+extern unsigned char debug_rssi_gainsel_note_max[110];
+extern unsigned char debug_rssi_gainsel_note_min[110];
+static unsigned char debug_rssi_id_ok[1500];
+static unsigned char debug_rssi_gain_sel[1500];
+int debug_rssi_count_i;
+
+
 volatile uint8_t  change_channel_index = 37;
 static uint16_t   compute_aux_offset;
 const uint8_t RfCenterFreq[50] = { // index by channelIndex
@@ -317,6 +327,66 @@ static inline void disable_anchor_IRQ_if_still_enabled(void)
     {
         RF_WT08_0xE0( E0h_10_EN_TEST_LO | 0x00);
     }
+}
+
+//////////////////////////////////////
+void debug_rssi_clear_count(void)
+{
+	debug_rssi_count_i =0;
+}
+static unsigned char findmaxValue(unsigned char myArray[], int Array_size)
+{
+	int i;
+	unsigned char maxValue= myArray[0];
+	
+	for(i=1;i<Array_size;++i)
+	{
+		if(myArray[i]>maxValue)
+		{
+			maxValue=myArray[i];
+		}
+		
+	}
+	return maxValue;
+}
+
+static unsigned char findminValue(unsigned char myArray[], int Array_size)
+{
+	int i;
+	unsigned char minValue= 0xFF;
+	
+	for(i=1;i<Array_size;++i)
+	{
+		if(myArray[i]!=0x00)
+		{
+			if(myArray[i]<minValue)
+			{
+				minValue=myArray[i];
+			}
+		}
+	}
+	return minValue;
+}
+
+static void findmaxminValue(unsigned char myArray[], int Array_size, unsigned char *max ,unsigned char *min)
+{
+	int i;
+	*max = myArray[1];
+	*min = 0xFF;	
+	for(i=1;i<Array_size;i++)
+	{
+		if(myArray[i]!=0x00)
+		{
+			if(myArray[i]< *min )
+			{
+				*min = myArray[i];
+			}
+			if(myArray[i]> *max )
+			{
+				*max = myArray[i];
+			}
+		}
+	}
 }
 
 ////////////////////////////////////////
@@ -3246,15 +3316,23 @@ err_print____(irq1isr_34h.reg);
             }     
        case LL_DTM_RX_SCAN:
            {
+           	unsigned char debug_rssi_id_ok_min;
+           	unsigned char debug_rssi_id_ok_max;
+           	unsigned char debug_rssi_gain_sel_min;
+           	unsigned char debug_rssi_gain_sel_max;
                     //uart_puts("rx_scan");
                 if( irq1isr_34h.field.rxto ) {
+                	debug_RFLA_pulse_to_trigger_LA();
+                	debug_RFLA_pulse_to_trigger_LA();
+   			debug_RFLA_pulse_to_trigger_LA();
+    			debug_RFLA_pulse_to_trigger_LA();
                     llfsm.state = LL_DTM_RX_CLOSE_EVENT; //rxto @ W4_ADVIND
                     //uart_puts("rxto");
                     break;
                 }//[1]RX_TO
                 if( irq1isr_34h.field.crcf ) { 
                 	
-                    debug_RFLA_pulse_to_trigger_LA(); 
+                   // debug_RFLA_pulse_to_trigger_LA(); 
                     debug_leTestEnd_evt.num_crcf++;                 	                      	 
                     //uart_putchar(0x88); 
 		//irq1isr_read_rxfifo_to_advRxQ(0x0200, header_rx_scanind_or_advind.reg);//debug
@@ -3264,16 +3342,55 @@ err_print____(irq1isr_34h.reg);
                 }//[7]CRCF
                 if( irq1isr_34h.field.address ) {
                 	//debug_RFLA_pulse_to_trigger_LA();
+                	
+                	#if Debug_COUNT_CRCF == 2
+                	debug_rssi_id_ok[debug_rssi_count_i] = RF_RD08(0x48);
+                	if(debug_rssi_id_ok[debug_rssi_count_i]>0x60){debug_RFLA_pulse_to_trigger_LA();}
+                	debug_rssi_gain_sel[debug_rssi_count_i] = RF_RD08(0x62);
                 	/*
-                	uart_putchar(0x04);         
-                	uart_putchar(0xFF);        
-                	uart_putchar(0x05);                	
-                	uart_putchar(RF_RD08(0x48));	
-                	uart_putchar(RF_RD08(0x62));
-                	uart_putchar(pacl->debug_power);
-                	uart_putchar(RF_RD08(0xAA));
-                	uart_putchar(RF_RD08(0xAA));
-                	*/
+	                	uart_putchar(0x04);         
+	                	uart_putchar(0xFF);        
+	                	uart_putchar(0x03); 
+	                	uart_putchar(debug_power);               		            	
+	                	uart_putchar(debug_rssi_gain_sel[debug_rssi_count_i]);
+	                	uart_putchar(debug_rssi_gain_sel[debug_rssi_count_i]); 
+	                	*/       	
+                	if(debug_rssi_count_i==100)
+                	{
+                		/*
+                		findmaxminValue(debug_rssi_id_ok+0,100,&debug_rssi_id_ok_max,&debug_rssi_id_ok_min);
+                		findmaxminValue(debug_rssi_gain_sel+0,100,&debug_rssi_gain_sel_max,&debug_rssi_gain_sel_min);
+	                	uart_putchar(0x04);         
+	                	uart_putchar(0xFF);        
+	                	uart_putchar(0x05); 
+	                	uart_putchar(pacl->debug_power);               		            	
+	                	uart_putchar(debug_rssi_id_ok_max);
+	                	uart_putchar(debug_rssi_id_ok_min);
+	                	uart_putchar(debug_rssi_gain_sel_max);
+	                	uart_putchar(debug_rssi_gain_sel_min);  
+	                	*/
+	                	findmaxminValue(debug_rssi_id_ok+0,100,&debug_rssi_id_ok_max,&debug_rssi_id_ok_min);
+                		findmaxminValue(debug_rssi_gain_sel+0,100,&debug_rssi_gain_sel_max,&debug_rssi_gain_sel_min);
+                		/*
+	                	uart_putchar(0x04);         
+	                	uart_putchar(0xFF);        
+	                	uart_putchar(0x05); 
+	                	uart_putchar(debug_power);               		            	
+	                	uart_putchar(debug_rssi_id_ok_max);
+	                	uart_putchar(debug_rssi_id_ok_min);
+	                	uart_putchar(debug_rssi_gain_sel_max);
+	                	uart_putchar(debug_rssi_gain_sel_min); 
+	                	 */
+	                	debug_rssi_id_ok_note_max[debug_power] = debug_rssi_id_ok_max; 
+	                	debug_rssi_id_ok_note_min[debug_power] = debug_rssi_id_ok_min; 
+	                	debug_rssi_gainsel_note_max [debug_power] = debug_rssi_gain_sel_max;
+				debug_rssi_gainsel_note_min [debug_power] = debug_rssi_gain_sel_min;
+
+	                	 
+        		}
+        		debug_rssi_count_i++;
+                	#endif
+                	
 
                 //		                    uart_puts("address");
                 }//[3]ADDRESS
@@ -3816,11 +3933,13 @@ void irq1isr_open_DTM_scanning_event(LEACL_TypeDef *pacl)
                 
                 IRQ1ISR_TODO_TypeDef zzz =
                 {
-			.field.irq08address_w_leh_40_disabledrxen = 0,
+			.field.irq08address_w_leh_40_disabledrxen = 0,	
+					
                 }; 
                 irq1isrtodo.reg = zzz.reg;
                 llfsm.pacl  = pacl;
                 llfsm.state = LL_DTM_RX_SCAN;
+                
   //enable_A9_interrupts();
 }
 

@@ -375,7 +375,6 @@ typedef struct                          // LE asynchronous connection (LE ACL)
     uint8_t  ext_adv_enable;		//bit[0] ext_adv_enable; bit[1] periodic_adv_enable; bit[2] connectionless_cte_enable
     
     uint8_t  mappedChannelIndex[4];
-    uint8_t  debug_power;
     BLETIMER_TypeDef ExtAdvEventAnchor;
     BLETIMER_TypeDef AuxAdvEventAnchor;
     BLETIMER_TypeDef PeriodicAdvEventAnchor;
